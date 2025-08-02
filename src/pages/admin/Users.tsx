@@ -106,18 +106,26 @@ export default function UsersManagement() {
     try {
       const password = generatePassword();
       
-      // Create user in auth system
+      // Create user in auth system with metadata including school_id
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: formData.email,
         password: password,
+        email_confirm: true, // Auto-confirm email for admin-created users
         user_metadata: {
           first_name: formData.first_name,
           last_name: formData.last_name,
-          role: formData.role
+          role: formData.role,
+          school_id: formData.school_id
         }
       });
 
       if (authError) throw authError;
+
+      // The trigger will automatically create the profile
+      // Wait a moment and reload to see the new user
+      setTimeout(() => {
+        loadData();
+      }, 1000);
 
       toast({
         title: "Пользователь создан",
@@ -126,7 +134,7 @@ export default function UsersManagement() {
 
       setIsDialogOpen(false);
       setFormData({ email: '', first_name: '', last_name: '', role: '', school_id: '' });
-      loadData();
+      setGeneratedPassword('');
     } catch (error: any) {
       toast({
         title: "Ошибка",
@@ -139,6 +147,7 @@ export default function UsersManagement() {
   const getRoleText = (role: string) => {
     switch (role) {
       case 'admin': return 'Администратор';
+      case 'school_admin': return 'Администратор школы';
       case 'teacher': return 'Учитель';
       case 'student': return 'Ученик';
       default: return role;
@@ -217,6 +226,7 @@ export default function UsersManagement() {
                       <SelectValue placeholder="Выберите роль" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="school_admin">Администратор школы</SelectItem>
                       <SelectItem value="teacher">Учитель</SelectItem>
                       <SelectItem value="student">Ученик</SelectItem>
                     </SelectContent>

@@ -21,7 +21,7 @@ interface Profile {
   id: string;
   first_name: string;
   last_name: string;
-  role: 'admin' | 'teacher' | 'student';
+  role: 'admin' | 'teacher' | 'student' | 'school_admin';
   school_id?: string;
 }
 
@@ -80,6 +80,7 @@ export default function Dashboard() {
   const getRoleTitle = (role: string) => {
     switch (role) {
       case 'admin': return 'Администратор';
+      case 'school_admin': return 'Администратор школы';
       case 'teacher': return 'Учитель';
       case 'student': return 'Ученик';
       default: return 'Пользователь';
@@ -93,6 +94,11 @@ export default function Dashboard() {
           { icon: <School className="h-5 w-5" />, title: "Управление школами", description: "Добавить или редактировать школы", action: () => navigate('/admin/schools') },
           { icon: <Users className="h-5 w-5" />, title: "Управление пользователями", description: "Добавить учителей и учеников", action: () => navigate('/admin/users') },
           { icon: <BarChart3 className="h-5 w-5" />, title: "Общая статистика", description: "Просмотр статистики по всем школам", action: () => navigate('/admin/stats') },
+        ];
+      case 'school_admin':
+        return [
+          { icon: <Users className="h-5 w-5" />, title: "Управление пользователями", description: "Добавить учителей и учеников", action: () => navigate('/admin/users') },
+          { icon: <BarChart3 className="h-5 w-5" />, title: "Статистика школы", description: "Просмотр статистики по школе", action: () => navigate('/admin/stats') },
         ];
       case 'teacher':
         return [

@@ -455,7 +455,7 @@ export type Database = {
     }
     Enums: {
       question_type: "multiple_choice" | "true_false" | "text"
-      user_role: "admin" | "teacher" | "student"
+      user_role: "admin" | "teacher" | "student" | "school_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -584,7 +584,7 @@ export const Constants = {
   public: {
     Enums: {
       question_type: ["multiple_choice", "true_false", "text"],
-      user_role: ["admin", "teacher", "student"],
+      user_role: ["admin", "teacher", "student", "school_admin"],
     },
   },
 } as const
