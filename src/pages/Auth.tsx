@@ -9,15 +9,9 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { GraduationCap, Eye, EyeOff } from 'lucide-react';
 
-type AuthMode = 'login' | 'register';
-
 export default function Auth() {
-  const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [role, setRole] = useState<'admin' | 'teacher' | 'student'>('student');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   
@@ -29,51 +23,23 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (error) {
-          toast({
-            title: "Ошибка входа",
-            description: error.message,
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Добро пожаловать!",
-            description: "Вы успешно вошли в систему",
-          });
-          navigate('/dashboard');
-        }
+      if (error) {
+        toast({
+          title: "Ошибка входа",
+          description: error.message,
+          variant: "destructive",
+        });
       } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              first_name: firstName,
-              last_name: lastName,
-              role: role,
-            }
-          }
+        toast({
+          title: "Добро пожаловать!",
+          description: "Вы успешно вошли в систему",
         });
-
-        if (error) {
-          toast({
-            title: "Ошибка регистрации",
-            description: error.message,
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Регистрация успешна!",
-            description: "Проверьте почту для подтверждения аккаунта",
-          });
-        }
+        navigate('/dashboard');
       }
     } catch (error) {
       toast({
@@ -96,59 +62,14 @@ export default function Auth() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">
-            {mode === 'login' ? 'Вход в BlockT.uz' : 'Регистрация в BlockT.uz'}
+            Вход в BlockT.uz
           </CardTitle>
           <CardDescription>
-            {mode === 'login' 
-              ? 'Войдите в свой аккаунт для продолжения' 
-              : 'Создайте аккаунт для начала работы'
-            }
+            Войдите в свой аккаунт для продолжения
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
-            {mode === 'register' && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">Имя</Label>
-                    <Input
-                      id="firstName"
-                      type="text"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="Ваше имя"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Фамилия</Label>
-                    <Input
-                      id="lastName"
-                      type="text"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      placeholder="Ваша фамилия"
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="role">Роль</Label>
-                  <Select value={role} onValueChange={(value: any) => setRole(value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите роль" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Администратор</SelectItem>
-                      <SelectItem value="teacher">Учитель</SelectItem>
-                      <SelectItem value="student">Ученик</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
-            )}
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -202,23 +123,10 @@ export default function Auth() {
                   Загрузка...
                 </div>
               ) : (
-                mode === 'login' ? 'Войти' : 'Зарегистрироваться'
+                'Войти'
               )}
             </Button>
 
-            <div className="text-center">
-              <Button
-                type="button"
-                variant="link"
-                onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-                className="text-sm"
-              >
-                {mode === 'login' 
-                  ? 'Нет аккаунта? Зарегистрируйтесь' 
-                  : 'Уже есть аккаунт? Войдите'
-                }
-              </Button>
-            </div>
           </form>
         </CardContent>
       </Card>
