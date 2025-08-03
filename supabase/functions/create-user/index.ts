@@ -35,7 +35,10 @@ serve(async (req) => {
 
     // Verify the user is authenticated and has admin/school_admin role
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token)
+    console.log('Auth user check:', { user: user?.id, error: userError })
+    
     if (userError || !user) {
+      console.log('Authentication failed:', userError)
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -43,13 +46,16 @@ serve(async (req) => {
     }
 
     // Check user role
-    const { data: profile } = await supabaseClient
+    const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('role')
       .eq('user_id', user.id)
       .single()
 
+    console.log('Profile check:', { profile, profileError, userId: user.id })
+
     if (!profile || !['admin', 'school_admin'].includes(profile.role)) {
+      console.log('Permission denied:', { role: profile?.role, allowedRoles: ['admin', 'school_admin'] })
       return new Response(
         JSON.stringify({ error: 'Insufficient permissions' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
