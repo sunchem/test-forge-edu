@@ -61,7 +61,7 @@ export default function UsersManagement() {
       .eq('user_id', session.user.id)
       .single();
 
-    if (profile?.role !== 'admin') {
+    if (!profile || (!['admin', 'school_admin'].includes(profile.role))) {
       navigate('/dashboard');
       return;
     }
