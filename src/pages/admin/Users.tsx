@@ -106,26 +106,28 @@ export default function UsersManagement() {
     try {
       const password = generatePassword();
       
-      // Create user in auth system with metadata including school_id
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: formData.email,
-        password: password,
-        email_confirm: true, // Auto-confirm email for admin-created users
-        user_metadata: {
+      // Get the current session to get the token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Не удалось получить токен авторизации');
+      }
+
+      // Call Edge Function to create user
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          email: formData.email,
+          password: password,
           first_name: formData.first_name,
           last_name: formData.last_name,
           role: formData.role,
           school_id: formData.school_id
-        }
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
-      if (authError) throw authError;
-
-      // The trigger will automatically create the profile
-      // Wait a moment and reload to see the new user
-      setTimeout(() => {
-        loadData();
-      }, 1000);
+      if (error) throw error;
 
       toast({
         title: "Пользователь создан",
@@ -135,6 +137,12 @@ export default function UsersManagement() {
       setIsDialogOpen(false);
       setFormData({ email: '', first_name: '', last_name: '', role: '', school_id: '' });
       setGeneratedPassword('');
+      
+      // Reload data after successful creation
+      setTimeout(() => {
+        loadData();
+      }, 1000);
+      
     } catch (error: any) {
       toast({
         title: "Ошибка",
