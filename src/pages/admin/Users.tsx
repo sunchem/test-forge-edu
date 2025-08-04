@@ -8,8 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Eye, EyeOff } from 'lucide-react';
+import { Plus, Users, Eye, EyeOff, Download, Key } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import * as XLSX from 'xlsx';
 
 interface School {
   id: string;
@@ -25,12 +28,29 @@ interface User {
   created_at: string;
 }
 
+interface UserCredential {
+  id: string;
+  user_id: string;
+  email: string;
+  password_plain: string;
+  school_id: string;
+  created_at: string;
+  profiles?: {
+    first_name: string;
+    last_name: string;
+    role: string;
+  };
+}
+
 export default function UsersManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
+  const [credentials, setCredentials] = useState<UserCredential[]>([]);
   const [loading, setLoading] = useState(true);
+  const [credentialsLoading, setCredentialsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showCredentialPasswords, setShowCredentialPasswords] = useState<{[key: string]: boolean}>({});
   const [generatedPassword, setGeneratedPassword] = useState('');
   const [formData, setFormData] = useState({
     email: '',
@@ -150,6 +170,82 @@ export default function UsersManagement() {
         variant: "destructive",
       });
     }
+  };
+
+  const loadCredentials = async () => {
+    setCredentialsLoading(true);
+    try {
+      // First get credentials, then get profiles separately
+      const { data: credentialsData, error: credentialsError } = await supabase
+        .from('user_credentials')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (credentialsError) throw credentialsError;
+
+      // Get profiles for all users
+      const userIds = credentialsData?.map(c => c.user_id) || [];
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, first_name, last_name, role')
+        .in('user_id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine the data
+      const credentialsWithProfiles = credentialsData?.map(credential => ({
+        ...credential,
+        profiles: profilesData?.find(p => p.user_id === credential.user_id)
+      })) || [];
+
+      setCredentials(credentialsWithProfiles as UserCredential[]);
+    } catch (error) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить учетные данные",
+        variant: "destructive",
+      });
+    } finally {
+      setCredentialsLoading(false);
+    }
+  };
+
+  const togglePasswordVisibility = (credentialId: string) => {
+    setShowCredentialPasswords(prev => ({
+      ...prev,
+      [credentialId]: !prev[credentialId]
+    }));
+  };
+
+  const exportToExcel = () => {
+    if (credentials.length === 0) {
+      toast({
+        title: "Нет данных",
+        description: "Нет учетных данных для экспорта",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const exportData = credentials.map(credential => ({
+      'ФИО': `${credential.profiles?.first_name || ''} ${credential.profiles?.last_name || ''}`,
+      'Email': credential.email,
+      'Пароль': credential.password_plain,
+      'Роль': getRoleText(credential.profiles?.role || ''),
+      'Дата создания': new Date(credential.created_at).toLocaleDateString('ru-RU')
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Учетные данные');
+    
+    const schoolName = schools.find(s => s.id === credentials[0]?.school_id)?.name || 'Школа';
+    XLSX.writeFile(wb, `${schoolName}_Учетные_данные_${new Date().toLocaleDateString('ru-RU').replace(/\./g, '_')}.xlsx`);
+    
+    toast({
+      title: "Экспорт завершен",
+      description: "Файл Excel успешно создан",
+    });
   };
 
   const getRoleText = (role: string) => {
@@ -284,24 +380,117 @@ export default function UsersManagement() {
           </Dialog>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {users.map((user) => (
-            <Card key={user.id} className="shadow-card hover:shadow-elevation transition-all duration-300">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <Users className="h-6 w-6 text-primary" />
-                  <span className="text-sm px-2 py-1 bg-primary/10 text-primary rounded-full">
-                    {getRoleText(user.role)}
-                  </span>
-                </div>
-                <CardTitle>{user.first_name} {user.last_name}</CardTitle>
-                <CardDescription>
-                  Создан: {new Date(user.created_at).toLocaleDateString()}
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
+        <Tabs defaultValue="users" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="users">Пользователи</TabsTrigger>
+            <TabsTrigger value="credentials" onClick={loadCredentials}>
+              <Key className="h-4 w-4 mr-2" />
+              Логины и пароли
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="users" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {users.map((user) => (
+                <Card key={user.id} className="shadow-card hover:shadow-elevation transition-all duration-300">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <Users className="h-6 w-6 text-primary" />
+                      <span className="text-sm px-2 py-1 bg-primary/10 text-primary rounded-full">
+                        {getRoleText(user.role)}
+                      </span>
+                    </div>
+                    <CardTitle>{user.first_name} {user.last_name}</CardTitle>
+                    <CardDescription>
+                      Создан: {new Date(user.created_at).toLocaleDateString()}
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="credentials" className="mt-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Учетные данные</h2>
+                <p className="text-muted-foreground">Логины и пароли пользователей вашей школы</p>
+              </div>
+              <Button onClick={exportToExcel} disabled={credentials.length === 0}>
+                <Download className="h-4 w-4 mr-2" />
+                Экспорт в Excel
+              </Button>
+            </div>
+
+            {credentialsLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : credentials.length === 0 ? (
+              <Card className="p-8 text-center">
+                <CardContent>
+                  <Key className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Нет учетных данных</h3>
+                  <p className="text-muted-foreground">Создайте пользователей, чтобы увидеть их учетные данные здесь</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ФИО</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Пароль</TableHead>
+                        <TableHead>Роль</TableHead>
+                        <TableHead>Дата создания</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {credentials.map((credential) => (
+                        <TableRow key={credential.id}>
+                          <TableCell className="font-medium">
+                            {credential.profiles?.first_name} {credential.profiles?.last_name}
+                          </TableCell>
+                          <TableCell>{credential.email}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <code className="bg-muted px-2 py-1 rounded text-sm">
+                                {showCredentialPasswords[credential.id] 
+                                  ? credential.password_plain 
+                                  : '••••••••'
+                                }
+                              </code>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => togglePasswordVisibility(credential.id)}
+                              >
+                                {showCredentialPasswords[credential.id] 
+                                  ? <EyeOff className="h-4 w-4" /> 
+                                  : <Eye className="h-4 w-4" />
+                                }
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm px-2 py-1 bg-primary/10 text-primary rounded-full">
+                              {getRoleText(credential.profiles?.role || '')}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {new Date(credential.created_at).toLocaleDateString('ru-RU')}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

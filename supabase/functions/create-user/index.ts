@@ -107,6 +107,35 @@ serve(async (req) => {
       throw createError
     }
 
+    // Get the current user's profile ID
+    const { data: currentProfile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
+
+    if (profileError) {
+      console.log('Error getting current user profile:', profileError)
+      throw new Error('Failed to get current user profile')
+    }
+
+    // Save credentials for school admin access
+    const { error: credentialsError } = await supabaseAdmin
+      .from('user_credentials')
+      .insert({
+        user_id: newUser.user.id,
+        email: email,
+        password_plain: password,
+        created_by: currentProfile.id,
+        school_id: school_id
+      })
+
+    if (credentialsError) {
+      console.log('Error saving credentials:', credentialsError)
+      // Don't fail the whole operation if credentials saving fails
+      console.log('User created but credentials not saved')
+    }
+
     return new Response(
       JSON.stringify({ 
         user: newUser.user,
