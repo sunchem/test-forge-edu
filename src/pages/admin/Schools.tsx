@@ -23,6 +23,7 @@ export default function Schools() {
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -36,6 +37,46 @@ export default function Schools() {
     checkAccess();
     loadSchools();
   }, []);
+
+  const handleEdit = (school: School) => {
+    setFormData({
+      name: school.name,
+      address: school.address || '',
+      contact_email: school.contact_email || '',
+      contact_phone: school.contact_phone || ''
+    });
+    setEditingSchool(school);
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (schoolId: string) => {
+    if (!window.confirm('Вы уверены, что хотите удалить эту школу?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('schools')
+        .delete()
+        .eq('id', schoolId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Успех",
+        description: "Школа успешно удалена"
+      });
+
+      loadSchools();
+    } catch (error) {
+      console.error('Error deleting school:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить школу",
+        variant: "destructive"
+      });
+    }
+  };
 
   const checkAccess = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -81,25 +122,43 @@ export default function Schools() {
     e.preventDefault();
     
     try {
-      const { error } = await supabase
-        .from('schools')
-        .insert([formData]);
+      if (editingSchool) {
+        // Update existing school
+        const { error } = await supabase
+          .from('schools')
+          .update(formData)
+          .eq('id', editingSchool.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Успешно",
-        description: "Школа добавлена",
-      });
+        toast({
+          title: "Успех",
+          description: "Школа успешно обновлена"
+        });
+      } else {
+        // Create new school
+        const { error } = await supabase
+          .from('schools')
+          .insert([formData]);
 
-      setIsDialogOpen(false);
+        if (error) throw error;
+
+        toast({
+          title: "Успех",
+          description: "Школа успешно добавлена"
+        });
+      }
+
       setFormData({ name: '', address: '', contact_email: '', contact_phone: '' });
+      setEditingSchool(null);
+      setIsDialogOpen(false);
       loadSchools();
     } catch (error) {
+      console.error('Error saving school:', error);
       toast({
         title: "Ошибка",
-        description: "Не удалось добавить школу",
-        variant: "destructive",
+        description: "Не удалось сохранить школу",
+        variant: "destructive"
       });
     }
   };
@@ -126,7 +185,13 @@ export default function Schools() {
             <p className="text-muted-foreground">Добавление и редактирование школ в системе</p>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              setEditingSchool(null);
+              setFormData({ name: '', address: '', contact_email: '', contact_phone: '' });
+            }
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
@@ -135,7 +200,7 @@ export default function Schools() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Добавить новую школу</DialogTitle>
+                <DialogTitle>{editingSchool ? 'Редактировать школу' : 'Добавить новую школу'}</DialogTitle>
                 <DialogDescription>
                   Заполните информацию о школе
                 </DialogDescription>
@@ -179,7 +244,7 @@ export default function Schools() {
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Отмена
                   </Button>
-                  <Button type="submit">Добавить</Button>
+                  <Button type="submit">{editingSchool ? 'Сохранить' : 'Добавить'}</Button>
                 </div>
               </form>
             </DialogContent>
@@ -193,10 +258,18 @@ export default function Schools() {
                 <div className="flex items-center justify-between">
                   <School className="h-6 w-6 text-primary" />
                   <div className="flex space-x-2">
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleEdit(school)}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleDelete(school.id)}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

@@ -63,14 +63,22 @@ serve(async (req) => {
       )
     }
 
-    // Check user role
-    const { data: profile, error: profileError } = await supabaseClient
+    // Check user role using the same approach as in the client
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('role')
       .eq('user_id', user.id)
       .single()
 
     console.log('Profile check:', { profile, profileError, userId: user.id })
+
+    if (profileError) {
+      console.log('Profile error:', profileError)
+      return new Response(
+        JSON.stringify({ error: 'Error checking user permissions' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     if (!profile || !['admin', 'school_admin'].includes(profile.role)) {
       console.log('Permission denied:', { role: profile?.role, allowedRoles: ['admin', 'school_admin'] })
