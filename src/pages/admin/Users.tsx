@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Eye, EyeOff, Download, Key } from 'lucide-react';
+import { Plus, Users, Eye, EyeOff, Download, Key, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,6 +21,7 @@ interface School {
 
 interface User {
   id: string;
+  user_id: string;
   first_name: string;
   last_name: string;
   role: string;
@@ -248,6 +249,46 @@ export default function UsersManagement() {
     });
   };
 
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!window.confirm(`Вы уверены, что хотите удалить пользователя ${userName}? Это действие нельзя отменить.`)) {
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Не удалось получить токен авторизации');
+      }
+
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { userId },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Пользователь удален",
+        description: `${userName} был успешно удален из системы`,
+      });
+
+      // Reload data after successful deletion
+      loadData();
+      if (credentials.length > 0) {
+        loadCredentials();
+      }
+      
+    } catch (error: any) {
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось удалить пользователя",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getRoleText = (role: string) => {
     switch (role) {
       case 'admin': return 'Администратор';
@@ -405,6 +446,17 @@ export default function UsersManagement() {
                       Создан: {new Date(user.created_at).toLocaleDateString()}
                     </CardDescription>
                   </CardHeader>
+                  <CardContent>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteUser(user.user_id, `${user.first_name} ${user.last_name}`)}
+                      className="w-full"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Удалить пользователя
+                    </Button>
+                  </CardContent>
                 </Card>
               ))}
             </div>
