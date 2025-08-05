@@ -13,11 +13,14 @@ import Results from "./pages/Results";
 import Schools from "./pages/admin/Schools";
 import Users from "./pages/admin/Users";
 import AdminStats from "./pages/admin/Stats";
+import TestManagement from "./pages/admin/TestManagement";
+import TestStatistics from "./pages/admin/TestStatistics";
 import CreateTest from "./pages/teacher/CreateTest";
 import TeacherTests from "./pages/teacher/Tests";
 import TeacherClasses from "./pages/teacher/Classes";
 import TeacherResults from "./pages/teacher/Results";
 import StudentTests from "./pages/student/Tests";
+import TakeTest from "./pages/student/TakeTest";
 
 const queryClient = new QueryClient();
 
@@ -37,11 +40,14 @@ const App = () => (
           <Route path="/admin/schools" element={<Schools />} />
           <Route path="/admin/users" element={<Users />} />
           <Route path="/admin/stats" element={<AdminStats />} />
+          <Route path="/admin/test-management" element={<TestManagement />} />
+          <Route path="/admin/test-statistics" element={<TestStatistics />} />
           <Route path="/teacher/create-test" element={<CreateTest />} />
           <Route path="/teacher/tests" element={<TeacherTests />} />
           <Route path="/teacher/classes" element={<TeacherClasses />} />
           <Route path="/teacher/results" element={<TeacherResults />} />
           <Route path="/student/tests" element={<StudentTests />} />
+          <Route path="/student/take-test/:testId" element={<TakeTest />} />
           <Route path="/student/results" element={<StudentTests />} />
           <Route path="/student/history" element={<StudentTests />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
